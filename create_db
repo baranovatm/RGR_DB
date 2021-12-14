@@ -1,0 +1,88 @@
+import psycopg2
+
+def create_connection(db_name, db_user, db_password, db_host, db_port):
+    connection = None
+    try:
+        connection = psycopg2.connect(
+            database=db_name,
+            user=db_user,
+            password=db_password,
+            host=db_host,
+            port=db_port,
+        )
+        print("Connection to PostgreSQL DB successful")
+    except OperationalError as e:
+        print(f"The error '{e}' occurred")
+    return connection
+
+connection = create_connection(
+    "RGR", "postgres", "*********", "127.0.0.1", "5432"
+)
+cur = connection.cursor()
+cur.execute('''
+CREATE TABLE IF NOT EXISTS public.antiques
+(
+    name character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    year_of_issue integer,
+    kind character varying(30) COLLATE pg_catalog."default",
+    manufacturer_name character varying(20) COLLATE pg_catalog."default",
+    CONSTRAINT antiques_pkey PRIMARY KEY (name),
+    CONSTRAINT antiques_manufacturer_name_fkey FOREIGN KEY (manufacturer_name)
+        REFERENCES public.manufacturer (name) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+CREATE TABLE IF NOT EXISTS public.auction
+(
+    name character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    address character varying(50) COLLATE pg_catalog."default",
+    mail character varying(30) COLLATE pg_catalog."default",
+    phone character varying(20) COLLATE pg_catalog."default",
+    step integer,
+    CONSTRAINT auction_pkey PRIMARY KEY (name)
+)
+CREATE TABLE IF NOT EXISTS public.holder
+(
+    name character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    address character varying(50) COLLATE pg_catalog."default",
+    phone character varying(30) COLLATE pg_catalog."default",
+    CONSTRAINT holder_pkey PRIMARY KEY (name)
+)
+CREATE TABLE IF NOT EXISTS public.manufacturer
+(
+    name character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    address character varying(50) COLLATE pg_catalog."default",
+    specialization character varying(20) COLLATE pg_catalog."default",
+    foundation_year integer,
+    CONSTRAINT manufacturer_pkey PRIMARY KEY (name)
+)
+CREATE TABLE IF NOT EXISTS public.ownership
+(
+    start_date date NOT NULL,
+    finish_date date,
+    price integer,
+    manufacturer_name character varying(20) COLLATE pg_catalog."default",
+    auction_name character varying(20) COLLATE pg_catalog."default",
+    holder_name character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    antiques_name character varying(30) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT ownership_pkey PRIMARY KEY (start_date, holder_name, antiques_name),
+    CONSTRAINT ownership_antiques_name_fkey FOREIGN KEY (antiques_name)
+        REFERENCES public.antiques (name) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT ownership_auction_name_fkey FOREIGN KEY (auction_name)
+        REFERENCES public.auction (name) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT ownership_holder_name_fkey FOREIGN KEY (holder_name)
+        REFERENCES public.holder (name) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT ownership_manufacturer_name_fkey FOREIGN KEY (manufacturer_name)
+        REFERENCES public.manufacturer (name) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+''')
+connection.commit()
+connection.close()
