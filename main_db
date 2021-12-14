@@ -1,0 +1,152 @@
+import psycopg2
+
+def create_connection(db_name, db_user, db_password, db_host, db_port):
+    connection = None
+    try:
+        connection = psycopg2.connect(
+            database=db_name,
+            user=db_user,
+            password=db_password,
+            host=db_host,
+            port=db_port,
+        )
+        print("Connection to PostgreSQL DB successful")
+    except OperationalError as e:
+        print(f"The error '{e}' occurred")
+    return connection
+
+connection = create_connection(
+    "RGR", "postgres", "*********", "127.0.0.1", "5432"
+)
+
+user_table_choice = -1
+table_names = {1: 'antiques', 2: 'auction', 3: 'holder', 4: 'manufacturer', 5: 'ownership'}
+col_names = []
+
+def execute_read_query(connection, query):
+    global col_names
+    cursor = connection.cursor()
+    result = None
+    try:
+        cursor.execute(query)
+        result = cursor.fetchall()
+        col_names = []
+        for elt in cursor.description:
+            col_names.append(elt[0])
+        print(col_names)
+        return result
+    except OperationalError as e:
+        print(f"The error '{e}' occurred")
+
+
+def select(table_name, arg_lst):
+    global table_names, user_table_choice, col_names
+    print('Welcome to select')
+    print(f'Welcome to {table_names.get(user_table_choice)}')
+    select = f"SELECT * FROM {table_names.get(user_table_choice)}"
+    table = execute_read_query(connection, select)
+    for t in table:
+        print(t)
+    connection.commit()
+    return col_names
+
+
+def insert(table_name, arg_lst):
+    global col_names
+    print('Welcome to insert')
+    select(table_name, arg_lst)
+    print('col_names = ', col_names)
+    print('How many records?')
+    records_num = int(input())
+    insert_lst = []
+
+    for i in range(records_num):
+        entrance = str(input())
+        cort = tuple(entrance.split(','))
+        if len(cort) < len(col_names):
+            print('Not enough data')
+            break
+        insert_lst.append(cort)
+
+    insert_lst_records = ", ".join(["%s"] * len(insert_lst))
+    insert_query = (f"INSERT INTO {table_names.get(table_name)} VALUES {insert_lst_records}")
+
+    connection.autocommit = True
+    cursor = connection.cursor()
+    cursor.execute(insert_query, insert_lst)
+
+
+def update(table_name, arg_lst):
+    print('Welcome to update')
+    print('Choose field to update')
+    field_lst_ = str(input())
+    print('Choose value to update')
+    inp_lst_ = str(input())
+    print('Choose condition field')
+    field_lst = str(input())
+    print('Choose condition value')
+    inp_lst = str(input())
+    update_comment = f"UPDATE {table_names.get(table_name)} SET {field_lst_}={inp_lst_} WHERE {field_lst}={inp_lst}"
+    connection.autocommit = True
+    cursor = connection.cursor()
+    cursor.execute(update_comment)
+
+
+
+def delete(table_name, arg_lst):
+    print('Welcome to delete')
+    print('Choose field to delete')
+    field_lst = str(input())
+    print('Choose value to delete')
+    inp_lst = str(input())
+    delete_comment = f"DELETE FROM {table_names.get(table_name)} WHERE {field_lst}={inp_lst}"
+    connection.autocommit = True
+    cursor = connection.cursor()
+    cursor.execute(delete_comment)
+
+
+def all_antiques_kinds(table_name, arg_lst):
+    all_antiques_kinds_comment = f"SELECT antiques.kind FROM antiques GROUP BY kind"
+    connection.autocommit = True
+    cursor = connection.cursor()
+    cursor.execute(all_antiques_kinds_comment)
+    rows = cursor.fetchall()
+    for row in rows:
+        print(row[0])
+
+def possession_time(table_name, arg_lst):
+    possession_time_comment = f"SELECT ownership.start_date, ownership.finish_date FROM ownership"
+    connection.autocommit = True
+    cursor = connection.cursor()
+    cursor.execute(possession_time_comment)
+    rows = cursor.fetchall()
+    for row in rows:
+        for i in range(len(rows)):
+            print(i)
+            print(row[0])
+            print(row[1])
+            print(row[1] - row[0])
+
+
+commands = {1: 'insert', 2: 'update', 3: 'select', 4: 'delete', 5: 'all_antiques_kinds', 6: 'possession_time'}
+commands_func = {'insert': insert, 'update': update, 'select': select, 'delete': delete, 'all_antiques_kinds': all_antiques_kinds, 'possession_time': possession_time}
+
+
+while True:
+    print(f'Choose number of the command 1-{len(commands)}: {list(commands.values())}')
+    user_command_choice = int(input())
+    if user_command_choice not in commands.keys():
+        print('Command not exists')
+        break
+    if user_command_choice > 4:
+        user_table_choice = 1;
+    else:
+        print(f'Choose number of the table 1-{len(table_names)}: {list(table_names.values())}')
+        user_table_choice = int(input())
+        if user_table_choice not in table_names.keys():
+            print('Table not exists')
+            break
+    present_command = commands.get(user_command_choice)
+    if present_command in commands_func.keys():
+        print(present_command)
+        commands_func[present_command](user_table_choice, 2)
